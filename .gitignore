@@ -1,0 +1,22 @@
+﻿# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+
+# Data (ignore actual files, but keep manifests/README)
+data/*/
+!data/**/README.md
+!data/**/manifest.csv
+
+# Models (ignore big weight files, keep SavedModel structure if small)
+models/**/*.h5
+models/**/*.tflite
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
