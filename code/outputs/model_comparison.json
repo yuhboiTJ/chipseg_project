@@ -1,0 +1,30 @@
+{
+  "scratch": {
+    "name": "scratch",
+    "model_type": null,
+    "encoder": null,
+    "param_count": null,
+    "epochs": 40,
+    "best_val_dice": 0.9435837268829346,
+    "val_dice_eval": 0.9419655440804672,
+    "val_iou_eval": 0.8905715490988986,
+    "area_mae": 3.366208599362128,
+    "area_rmse": 4.000717279792837,
+    "area_r2": 0.6417047897017187,
+    "n_chips": 24
+  },
+  "pretrained": {
+    "name": "pretrained",
+    "model_type": "pretrained",
+    "encoder": "resnet34",
+    "param_count": 24436369,
+    "epochs": 40,
+    "best_val_dice": 0.9403432607650757,
+    "val_dice_eval": 0.9391174172923857,
+    "val_iou_eval": 0.8863479988305041,
+    "area_mae": 4.193790856742727,
+    "area_rmse": 5.071595044411109,
+    "area_r2": 0.42422286266523235,
+    "n_chips": 24
+  }
+}

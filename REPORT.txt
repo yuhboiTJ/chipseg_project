@@ -1,0 +1,432 @@
+Real-Time Microchip Segmentation and Usable Surface Area Quantification
+========================================================================
+Project Report
+
+1. ABSTRACT
+-----------
+The lab workflow for preparing silicon microchips for cell-seeding experiments
+currently requires manually transferring each chip into a dish, imaging at 1x
+zoom, exporting a TIFF, setting scale, tracing the chip boundary, and reading
+out the seedable surface area through legacy software. Each chip takes one to
+two minutes and a typical 36-chip experiment burns through hours of cleaning,
+imaging, and quantification. This project develops a deep-learning pipeline
+that produces the same area readout automatically from a single image. A
+U-Net (a fully-convolutional encoder-decoder network for image segmentation)
+is trained on hand-drawn binary masks to segment the chip region in the
+image, a saturation-based refinement step strips off the chip's shadow on
+the background paper, and a calibration factor converts pixel area to square
+millimeters (mm^2). Evaluated chip-level (the model never sees the
+validation chips during training), the U-Net reaches a mean Dice coefficient
+of 0.9420 and a mean intersection over union (IoU) of 0.8906 on the held-
+out chips, and the end-to-end predicted seedable area across all 24 chips
+matches the ground-truth area to a mean absolute error (MAE) of 3.37 mm^2
+with a coefficient of determination R^2 = 0.642.
+
+2. BACKGROUND
+-------------
+Each chip is a small (roughly 5 to 30 mm^2) silicon piece used as a substrate
+for seeding cells. Before seeding, the lab needs to know how much usable
+surface the chip presents. Defects on the chip surface (dust, debris,
+scratches, edge damage) are not usable, so the seedable area is less than
+the total chip area. Today this is measured by hand in a tracing program.
+The legacy workflow does not scale and introduces operator-dependent
+variation between chips and between sessions.
+
+The project plan was to replace the manual tracing with a two-stage U-Net:
+stage 1 finds the chip in the image, stage 2 splits the chip into seedable
+versus unseedable regions. The trained model would be deployed on a
+Raspberry Pi 4 with a USB capture device for live inference at the
+microscope.
+
+3. DATASET
+----------
+The training dataset (Training_dataset_2) has 24 chips (C01-C24) imaged at
+zoom 1 against 7 different background paper colors each. That is 168 PNG
+images at 720x576. For each chip the seedable surface area in mm^2 was
+recorded as part of the original lab workflow; these 24 values live in
+filenames such as c01_z1_17.37 (chip 1 at zoom 1 has 17.37 mm^2 seedable
+surface). Multiple background colors were chosen on purpose so the model
+would not overfit to a single paper color, and the chip orientations vary
+across backgrounds for the same reason.
+
+A separate testing dataset (Testing_dataset_1) has 12 chips with 2 to 9
+images per chip but no ground-truth masks or area values. Those chips are
+different physical chips imaged on a different date. They are useful for
+qualitative inspection (does the model still produce reasonable masks on
+chips it has never seen and on lighting it has never seen?) but cannot be
+used for quantitative validation.
+
+Ground-truth segmentation masks were not part of the original dataset. To
+train a U-Net I drew binary masks by hand in ImageJ for the seedable area
+of each chip in the training set:
+
+  - chips C01 to C06: four background variants each (24 masks)
+  - chips C07 to C24: one background each (18 masks)
+
+Total: 42 manual masks. One mask (C01 background 3) was empty due to a
+save issue and is filtered out automatically, leaving 41 valid pairs. Each
+mask was drawn by tracing the clean chip surface with the polygon
+selection tool, then converted to a binary image with Edit > Selection >
+Create Mask and saved as JPEG or TIFF in
+Training_dataset_2_ground_truth_masks.
+
+4. METHOD
+---------
+4.1 Network
+The U-Net is the standard four-down four-up architecture with skip
+connections and a base channel count of 16, which gives about 1.94 million
+parameters. The smaller base count keeps inference fast enough for a
+Raspberry Pi 4 deployment. The input is resized to 288x384 (close to the
+native aspect ratio and divisible by 16 for clean downsampling) and the
+output is a single-channel logits map. A sigmoid is applied at inference
+and thresholded at 0.5 to get the predicted chip mask, which is then
+resized back to the native 720x576 for area measurement.
+
+4.2 Training and validation split
+The combined loss is binary cross-entropy (BCE) plus soft Dice. Optimizer
+is Adam at learning rate 1e-3 with ReduceLROnPlateau on validation Dice.
+Augmentation is
+intentionally heavy because the labeled dataset is small: horizontal and
+vertical flip, affine transforms (translate, scale, rotate up to 20
+degrees), random brightness and contrast, and Gaussian noise.
+
+The split is chip-level: chips C07, C12, C18, and C20 are held out
+entirely as validation. No mask of any of those four chips is ever seen
+during training. They were chosen to span the area range (5.49, 10.22,
+18.68, 28.43 mm^2 respectively). Training ran for 40 epochs and reached a
+best validation Dice of 0.9436 mid-training.
+
+A random per-mask split was tried first but rejected because it allowed
+two backgrounds of the same chip to land on opposite sides of the split,
+which inflates the validation metric. The chip-level split tests true
+generalization to unseen chips, not to unseen backgrounds of seen chips.
+
+4.3 Stage 2 (shadow refinement)
+Stage 2 cleans up the U-Net's chip mask. The dominant failure mode of the
+raw U-Net mask is that the chip's shadow on the background paper gets
+pulled into the predicted mask: the shadow is darker than the surrounding
+paper, so it looks chip-like to a model trained on chip-vs-background. We
+use the observation that the chip is achromatic (gray/black silicon, low
+saturation in the hue-saturation-value (HSV) color space) while the
+shadow keeps the paper's color (non-trivial saturation). Within the predicted chip mask we keep only pixels whose
+saturation is in the lower part of the chip-pixel saturation
+distribution and whose brightness is at most a small offset above the
+median chip brightness, then take the largest connected component to drop
+disconnected shadow blobs.
+
+A separate bright-defect-removal step (Otsu's threshold applied inside
+the mask) is implemented but disabled by default. The U-Net's training masks already
+encode which on-chip features count as seedable, so the network has
+already learned that distinction. Re-applying a generic bright-spot
+removal step on top would unlearn it, e.g. by peeling off a regular grid
+of bright wells on a larger chip. The optional defect-removal step is
+left in the code as drop_defects=True for images with obvious edge
+debris.
+
+4.4 Calibration
+The pixel-to-mm^2 conversion factor is derived from the labeled images.
+For each labeled mask the ratio mm2_per_pixel = ground_truth_area_mm2 /
+mask_pixel_count is computed at native (720x576) resolution. The mean
+across all labeled chips is used as the global calibration factor. If the
+manual masks and the ground-truth area numbers were not internally
+consistent, the ratios would scatter wildly. The coefficient of variation
+(CoV, the standard deviation divided by the mean) across the 40 valid
+labeled images is small (see results), confirming internal consistency.
+
+The lab's original measurement scale, used in ImageJ to compute the 24
+ground-truth area values, was 68.6 pixels per millimeter (linear). That
+corresponds to a pixel-to-mm^2 factor of 1 / 68.6^2 = 2.125e-4 mm^2 per
+pixel. Our back-derived factor (1.486e-4 mm^2 per pixel, or 82.0 pixels
+per millimeter linear) differs by about 19 percent per axis or 41
+percent in area. This gap reflects a systematic difference in tracing
+tightness between two ImageJ sessions: the original area-measurement
+ROIs were drawn on just the flat seedable surface, while the recently-
+drawn ML training masks include a small amount of additional chip-edge
+area. Both calibrations are valid in their own context; we use the
+back-derived factor for ML evaluation because it absorbs the labeling-
+tightness bias and lets predicted areas from our masks compare directly
+to the ground-truth values without further offset. The lab scale is
+preserved in the live demo (live_demo.py) and noted here so future
+re-tracing or live capture can use the official measurement standard.
+
+4.5 Live demonstration interface
+A standalone live tool (scripts/live_demo.py) realises the scan-and-go
+workflow originally proposed in the project plan. It reads frames from a
+USB capture device, runs the full pipeline on each frame, and shows the
+predicted seedable area in mm^2 on top of the live feed at a few frames
+per second on the Pi's CPU. Operator-facing features:
+
+  - a zoom slider with quarter-step snaps from 0.25x to 15x. The
+    calibration factor scales as 1 / zoom^2, since zooming in halves the
+    linear size and quarters the area of one pixel.
+  - a centre crosshair lock. Only the connected component of the
+    predicted mask that touches the crosshair is counted, so a hand or
+    a neighbouring chip in frame is ignored. Sliding the dish so a new
+    chip lands on the crosshair automatically resets the smoothing
+    window.
+  - a live boundary trace. The predicted mask outline is drawn on the
+    frame as a cyan contour, dashed while the readout is still settling
+    and solid once the area number stabilises, so the operator can see
+    what the model has decided is the chip.
+  - a five-frame median smoothing on the area readout, stable enough to
+    read off the screen and copy down.
+  - a freeze key (space) that locks the current reading while the
+    operator writes it down, and a save key (s) that captures the
+    current frame and overlay to outputs/predictions/.
+  - a calibration-source toggle (lab 68.6 px/mm vs masks-derived). Both
+    sources are loaded at startup so the operator can pick whichever
+    matches the workflow they are reproducing.
+
+The same tool runs on Windows (with any webcam) and on the Raspberry Pi
+4 with a USB capture device through the existing PyTorch stack. A
+double-clickable launcher (run_chip_tool.sh on the Pi,
+run_chip_tool.bat on Windows) and a Pi desktop entry
+(chip_area_tool.desktop) are included so the tool opens like a native
+application.
+
+5. RESULTS
+----------
+5.1 Calibration consistency
+Across the 40 valid labeled images the per-image ratio mm^2 / pixel had:
+  mean              = 1.486110e-04
+  median            = 1.477002e-04
+  standard deviation = 3.226541e-06
+  coefficient of variation = 2.17%
+
+A CoV just above 2% means the per-chip ratios cluster
+tightly around the mean despite spanning chips C01 through C24, four
+backgrounds for some chips and one background for others, and 24
+different ground-truth areas ranging from 5.49 to 30.67 mm^2. The mean is
+used as the global calibration factor for inference.
+
+5.2 Mask quality on validation chips
+The held-out chips (C07, C12, C18, C20) were never in the training set.
+On the four validation images the trained U-Net produced:
+  Dice (mean) = 0.9420
+  IoU  (mean) = 0.8906
+
+These numbers measure true generalization: the model was asked to mask
+chips it has never seen. The strong scores indicate that the multi-
+background, multi-orientation training data taught the model what a chip
+is in general, not just specific chip identities or specific paper colors.
+
+5.3 End-to-end area prediction
+For every image in Training_dataset_2 (168 images, 24 chips, 7 background
+variants each) the full pipeline ran: predict chip mask, run stage 2
+shadow refinement, multiply pixel count by the calibration factor. For
+each chip the seven background variants give seven predicted areas; we
+averaged those to produce one number per chip and compared to the ground
+truth.
+
+  chips evaluated = 24
+  MAE  = 3.366 mm^2
+  RMSE = 4.001 mm^2
+  R^2  = 0.6417
+
+The scatter plot in figures/area_scatter.png shows clear correlation
+between predicted and ground-truth areas, with small chips clustered
+near the bottom-left along the y = x line and the largest chips falling
+slightly below it.
+
+5.4 Qualitative test on Testing_dataset_1
+Testing_dataset_1 contains 67 images across 12 different physical chips
+imaged on a different date. There are no manual masks and no ground-
+truth area values for this dataset, so it cannot drive a quantitative
+mask metric. It is useful as a fully out-of-distribution sanity check:
+the model never saw any of these chips during training and never saw
+the lighting these images were captured under.
+
+We ran the full inference pipeline on every image in the set and
+recorded the predicted seedable area in mm^2 (see
+outputs/test1_predictions.csv and outputs/test1_summary.json). For
+each chip with multiple background variants we computed the mean and
+standard deviation of the predictions across those variants; with no
+ground truth we cannot evaluate accuracy directly, but cross-background
+consistency on the same physical chip is a useful proxy. A model that
+generalizes well should predict roughly the same area for the same
+chip regardless of which paper it sits on.
+
+  chips evaluated      = 12
+  images evaluated     = 67
+  per-chip mean range  = 11.98 to 22.33 mm^2
+  mean per-chip std    = 2.13 mm^2
+  mean per-chip CoV    = 12.8 percent
+
+The bar chart in figures/test1_per_chip.png shows each chip's mean
+predicted area with one-sigma error bars. The mean within-chip CoV of
+about 13 percent indicates that predictions on the same chip are
+broadly consistent across backgrounds, with most variation coming
+from the same shadow-on-dark-background failure mode that affects
+the small chips in Training_dataset_2. The predicted area range
+(roughly 12 to 22 mm^2) overlaps the training-set distribution, so the
+model is not producing nonsensical numbers on unfamiliar chips.
+
+5.5 Comparison: scratch U-Net vs pretrained ResNet34 encoder
+To test whether a larger model with ImageNet-pretrained weights would do
+better, a second model was trained: an smp.Unet (segmentation_models_pytorch)
+with a ResNet34 encoder initialised from ImageNet weights, decoder
+trained from scratch. Same training data, same chip-level split (val
+chips C07, C12, C18, C20), same loss (BCE + Dice), same 40 epochs. The
+pretrained run used learning rate 1e-4 (standard for fine-tuning
+pretrained weights) and batch size 8 instead of 4. Trained on an RTX
+5080.
+
+  metric              scratch          pretrained
+  -----------------   --------         -----------
+  base architecture   custom U-Net     smp.Unet + ResNet34
+  parameters          1,939,025        24,436,369
+  encoder weights     none             ImageNet
+  training time       3 min on CPU     30 sec on GPU
+  best val Dice       0.9436           0.9403
+  val Dice (eval)     0.9420           0.9391
+  val IoU  (eval)     0.8906           0.8863
+  area MAE            3.37 mm^2        4.19 mm^2
+  area RMSE           4.00 mm^2        5.07 mm^2
+  area R^2            0.642            0.424
+
+Headline: the 12x larger pretrained model is not better on this dataset.
+Mask quality is essentially tied (within noise of a four-image
+validation set). On end-to-end area MAE the smaller scratch model wins.
+
+The two models have visibly different failure modes (see
+figures/area_scatter_comparison.png):
+
+  scratch: predictions cluster horizontally around the band 11 to 22
+    mm^2 regardless of true chip size. Small chips are over-predicted,
+    big chips under-predicted. The model has learned a "typical chip
+    mask shape" but does not modulate its size strongly with the actual
+    chip.
+
+  pretrained: predictions track the true area more faithfully (the
+    points roughly follow the y = x line in slope) but with a uniform
+    downward offset. The model traces tighter, more chip-conforming
+    masks but consistently produces fewer pixels than the scratch model
+    for the same chip.
+
+Net effect: pretrained scales correctly with chip size but undershoots
+on average, while scratch has the right average but flat scaling. By
+MAE alone scratch wins because its over- and under- predictions cancel
+in the mean. By correlation strength (R^2) scratch also wins because
+the pretrained model's constant offset hurts R^2 more than the band-
+shape failure mode does at this dataset size.
+
+Why the larger pretrained model does not pull ahead: 41 labeled images
+is a tiny dataset for a 24M-parameter network. Most of those parameters
+go into the encoder, which the ImageNet weights initialised but the
+training set is too small to fine-tune meaningfully. The smaller
+1.94M-parameter scratch model has just enough capacity for the task
+and uses all of it on the chip-vs-background problem rather than
+spreading representation across general image features. This matches
+the "small dataset, simple problem, prefer the smaller model" pattern.
+
+The pretrained model's tighter masks would close the area-MAE gap
+quickly with a per-model calibration: re-running the back-derive
+calibration step on the pretrained model's predictions of labeled
+images (instead of using the masks-derived calibration) would absorb
+its constant offset. We did not include that result here because it
+would be an unfair comparison (each model gets its own calibration
+factor). The reported numbers use the same masks-derived calibration
+for both, which is the cleaner methodological choice.
+
+6. DISCUSSION
+-------------
+Two design choices drove the chip-level results. First, labeling at least
+one mask of every chip rather than several masks of a few chips. Holding
+out a chip is only a meaningful test if at least one similar chip is in
+the training data, so coverage matters more than per-chip multiplicity.
+Second, separating shadow handling from defect handling in stage 2 and
+turning the defect step off by default. Once the U-Net is trained on
+masks that already encode "what counts as seedable" per the labeler's
+judgement, an aggressive defect-removal post-process subtracts twice and
+hurts results. Shadow refinement is independent of labeling style (the
+shadow is never on the chip itself, it is on the paper), so it stays on.
+
+Per-chip error breakdown is in the metrics.json. Smaller chips
+(5 to 10 mm^2) have higher relative error because the absolute area is
+small and the shadow on certain background colors is comparable in size
+to the chip itself. Larger chips (greater than 25 mm^2) are systematically
+underestimated by 20 to 30 percent because the U-Net's chip mask
+sometimes does not cover the full extent of the chip on backgrounds it
+has not seen labeled.
+
+Comparison to the manual workflow: the original 1 to 2 minutes per chip
+is replaced by sub-second inference plus image capture. The model fits in
+under 8 MB on disk and does not require a GPU at inference time.
+
+7. LIMITATIONS
+--------------
+Limited labeling. 41 valid masks across 24 chips is enough to train a
+working U-Net but not enough to drive Dice above 0.94. Adding more
+backgrounds for chips C07 through C24 would tighten validation further.
+
+Test_1 has no ground truth. The Testing_dataset_1 folder has 67 usable
+images across 12 unrelated chips but no manual masks or area values.
+We run inference on it for qualitative inspection (section 5.4) and
+report cross-background consistency, but absolute accuracy on this set
+cannot be measured.
+
+Stage 2 is classical, not learned. Shadow handling is a hand-coded HSV
+rule. A second U-Net trained on per-chip seedable-vs-unseedable labels
+would handle backgrounds where the chip-shadow contrast is unusual.
+Implementing that was descoped due to labeling time.
+
+Single zoom level for calibration. All training and quantitative
+evaluation is at zoom 1. The live demo's zoom slider scales the 1x
+calibration factor mathematically by 1 / zoom^2, but no held-out images
+at other zooms exist to verify that scaling on real hardware. Capturing
+a labeled calibration image at each microscope zoom and re-deriving the
+factor per zoom level remains future work.
+
+8. FUTURE WORK
+--------------
+Add multiple backgrounds per chip for chips C07 through C24. Adding a
+second labeled mask per chip on a different background paper would let
+validation Dice climb above 0.94 and tighten the end-to-end area MAE.
+
+Add a second U-Net for stage 2, trained on per-chip seedable-vs-
+unseedable labels rather than the current chip-vs-background masks.
+This would replace the classical shadow-removal step with a learned
+model and remove the failure mode where shadow on certain background
+colors gets pulled into the chip mask.
+
+Convert the trained PyTorch model to TensorFlow Lite via the Open
+Neural Network Exchange (ONNX) intermediate format for faster Pi
+inference. The live demo currently runs PyTorch directly on
+the Pi's CPU at a few frames per second; a TFLite-quantised version
+would push that closer to interactive frame rates and shrink the
+deployed model on disk.
+
+Per-zoom calibration. The live demo's zoom slider scales the 1x
+calibration factor mathematically by 1 / zoom^2, which is geometrically
+correct but not validated on real hardware. Capturing a labeled
+calibration image at each microscope zoom and re-deriving the factor
+per zoom level would replace the assumed scaling with measured values.
+
+Human-in-the-loop active learning. During live demonstration, when the
+predicted mask is visibly wrong the operator should be able to trace a
+corrected boundary directly in the demo window with the mouse, click
+OK to accept the correction, and the system would save the corrected
+mask alongside the current frame as a new (image, mask) pair under
+Training_dataset_2_ground_truth_masks. A scheduled retraining run
+(overnight, or on demand) would then incorporate all accepted
+corrections from that day and replace the deployed checkpoint, so the
+model improves through use rather than only through dedicated labeling
+sessions. Over time the demo would learn the lab's specific chip
+styles, lighting, and edge cases. Online fine-tuning during a live
+session is also possible (a few gradient steps on the new sample after
+each correction) but accumulating corrections and retraining on a
+schedule is more robust to occasional mis-traces and avoids
+catastrophic forgetting.
+
+9. REPRODUCING THE RESULTS
+--------------------------
+From the code/ folder:
+
+  python -m pip install -r requirements.txt
+  python scripts/train_model.py --epochs 40 --base-channels 16
+  python scripts/evaluate.py
+  python scripts/finalize_report.py
+
+Or open notebooks/01_full_pipeline.ipynb and run the cells top to bottom.
+The notebook re-uses the existing checkpoint by default; set RETRAIN=True
+in the first cell to retrain from scratch.

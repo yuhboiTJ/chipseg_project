@@ -1,0 +1,9 @@
+Real-Time Microchip Segmentation and Usable Surface Area Quantification Using Raspberry Pi Imaging
+
+Abstract
+
+This project develops an automated imaging and segmentation system that streamlines how silicon-based microchips are prepared and analyzed for cell-seeding experiments. The current workflow in our lab requires manually transferring dried chips into separate dishes, imaging each chip at 1x zoom, exporting TIFF files, setting or resetting scale parameters, tracing chip boundaries, and calculating usable surface area through legacy software. For large chips, multiple images must be stitched mentally, and even under ideal conditions the process takes roughly 1-2 minutes per chip. When preparing 36 or more chips, cleaning, imaging, and quantifying seedable area can occupy several hours and significantly limits experimental throughput.
+
+To address this limitation, the proposed system integrates a Raspberry Pi 4 with a microscope-connected USB capture device to acquire live images of each chip. A two-stage deep learning segmentation pipeline is developed using a U-Net model: first identifying the chip region and then classifying seedable versus unseedable areas. The trained model is converted to TensorFlow Lite for real-time inference on the Raspberry Pi. Pixel-based area measurements are translated into mm^2 using zoom-specific calibration factors, enabling immediate readouts without manual tracing or post-processing.
+
+The goal is a "scan-and-go" workflow where each chip is placed under the microscope and the usable surface area is returned instantly. By eliminating manual segmentation and scale setting, the system aims to reduce analysis time by an order of magnitude, increase experimental capacity, and provide more consistent and reproducible area measurements for downstream seeding decisions.

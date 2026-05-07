@@ -1,0 +1,20 @@
+{
+  "n_pairs": 41,
+  "n_train": 37,
+  "n_val": 4,
+  "split_strategy": "chip_level",
+  "val_chips": [
+    7,
+    12,
+    18,
+    20
+  ],
+  "best_val_dice": 0.9403432607650757,
+  "final_val_dice": 0.9391789436340332,
+  "final_val_iou": 0.8862248659133911,
+  "epochs": 40,
+  "device": "cuda",
+  "model_type": "pretrained",
+  "encoder_name": "resnet34",
+  "param_count": 24436369
+}

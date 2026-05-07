@@ -1,22 +1,39 @@
-﻿# Python cache
+# AI assistant tooling and memory. Must never be committed.
+.claude/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
 
-# Virtual environments
-.venv/
-venv/
+# Jupyter
+.ipynb_checkpoints/
 
-# Data (ignore actual files, but keep manifests/README)
-data/*/
-!data/**/README.md
-!data/**/manifest.csv
-
-# Models (ignore big weight files, keep SavedModel structure if small)
-models/**/*.h5
-models/**/*.tflite
-
-# OS/editor junk
-.DS_Store
-Thumbs.db
+# Editor / OS junk
 .vscode/
 .idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# AppleDouble metadata files (artifacts of the original Mac transfer)
+._*
+
+# Live demo runtime captures (frames the operator saved while running)
+code/outputs/predictions/
+
+# === DATASETS ===
+# The chip image data is roughly 200-400 MB total, lab-provided, and not
+# intended for public distribution. Excluded by default. If you want the
+# repo to be self-contained for grading, comment out these four lines.
+Training_dataset_2/
+Training_dataset_2_ground_truth_masks/
+Training_set_2_ground_truth_areas/
+Testing_dataset_1/
+
+# Empty duplicate folder created accidentally by tooling on the U+F029 path
+_duplicate_empty_microchip_dir/

@@ -1,0 +1,17 @@
+{
+  "n_pairs": 41,
+  "n_train": 37,
+  "n_val": 4,
+  "split_strategy": "chip_level",
+  "val_chips": [
+    7,
+    12,
+    18,
+    20
+  ],
+  "best_val_dice": 0.9435837268829346,
+  "final_val_dice": 0.940678596496582,
+  "final_val_iou": 0.8882770538330078,
+  "epochs": 40,
+  "device": "cpu"
+}

@@ -1,0 +1,50 @@
+warning: skipped 1 empty mask file(s):
+  ..\Training_dataset_2_ground_truth_masks\C01\co1_bg3_mask.jpg
+found 41 labeled pairs
+chip-level split. val chips = [7, 12, 18, 20]
+train: 37    val: 4
+device: cpu
+unet params: 1,942,577
+epoch   1/40  train_loss 1.2162  val_loss 1.2081  val_dice 0.7557  val_iou 0.6090  lr 1.00e-03  (4.4s)
+epoch   2/40  train_loss 1.0774  val_loss 0.7208  val_dice 0.9148  val_iou 0.8432  lr 1.00e-03  (4.4s)
+epoch   3/40  train_loss 0.9954  val_loss 0.6557  val_dice 0.8743  val_iou 0.7808  lr 1.00e-03  (4.4s)
+epoch   4/40  train_loss 0.9532  val_loss 0.6963  val_dice 0.8298  val_iou 0.7191  lr 1.00e-03  (4.4s)
+epoch   5/40  train_loss 0.9243  val_loss 0.7790  val_dice 0.8665  val_iou 0.7655  lr 1.00e-03  (4.6s)
+epoch   6/40  train_loss 0.8814  val_loss 0.6064  val_dice 0.9279  val_iou 0.8658  lr 1.00e-03  (4.4s)
+epoch   7/40  train_loss 0.8550  val_loss 0.5486  val_dice 0.9376  val_iou 0.8831  lr 1.00e-03  (4.4s)
+epoch   8/40  train_loss 0.8223  val_loss 0.5569  val_dice 0.8932  val_iou 0.8090  lr 1.00e-03  (4.3s)
+epoch   9/40  train_loss 0.9368  val_loss 0.5089  val_dice 0.9194  val_iou 0.8511  lr 1.00e-03  (4.3s)
+epoch  10/40  train_loss 0.8195  val_loss 0.4518  val_dice 0.9039  val_iou 0.8250  lr 1.00e-03  (4.4s)
+epoch  11/40  train_loss 0.7517  val_loss 0.4607  val_dice 0.8903  val_iou 0.8047  lr 1.00e-03  (4.3s)
+epoch  12/40  train_loss 0.7736  val_loss 0.4820  val_dice 0.8829  val_iou 0.7940  lr 1.00e-03  (4.4s)
+epoch  13/40  train_loss 0.7720  val_loss 0.4036  val_dice 0.9151  val_iou 0.8454  lr 5.00e-04  (4.4s)
+epoch  14/40  train_loss 0.7003  val_loss 0.4028  val_dice 0.8969  val_iou 0.8162  lr 5.00e-04  (4.5s)
+epoch  15/40  train_loss 0.6899  val_loss 0.4181  val_dice 0.9215  val_iou 0.8550  lr 5.00e-04  (4.6s)
+epoch  16/40  train_loss 0.6627  val_loss 0.4145  val_dice 0.9201  val_iou 0.8537  lr 5.00e-04  (4.8s)
+epoch  17/40  train_loss 0.6893  val_loss 0.3795  val_dice 0.9250  val_iou 0.8613  lr 5.00e-04  (4.6s)
+epoch  18/40  train_loss 0.8339  val_loss 0.4063  val_dice 0.9419  val_iou 0.8908  lr 5.00e-04  (5.6s)
+epoch  19/40  train_loss 0.6957  val_loss 0.3494  val_dice 0.9292  val_iou 0.8682  lr 5.00e-04  (4.5s)
+epoch  20/40  train_loss 0.7151  val_loss 0.3726  val_dice 0.9249  val_iou 0.8606  lr 5.00e-04  (4.3s)
+epoch  21/40  train_loss 0.6597  val_loss 0.3908  val_dice 0.9317  val_iou 0.8725  lr 5.00e-04  (4.3s)
+epoch  22/40  train_loss 0.6630  val_loss 0.3601  val_dice 0.9208  val_iou 0.8535  lr 5.00e-04  (4.3s)
+epoch  23/40  train_loss 0.6449  val_loss 0.3202  val_dice 0.9396  val_iou 0.8865  lr 5.00e-04  (4.3s)
+epoch  24/40  train_loss 0.7078  val_loss 0.2959  val_dice 0.9396  val_iou 0.8866  lr 2.50e-04  (4.3s)
+epoch  25/40  train_loss 0.6227  val_loss 0.3067  val_dice 0.9392  val_iou 0.8859  lr 2.50e-04  (4.3s)
+epoch  26/40  train_loss 0.6039  val_loss 0.3291  val_dice 0.9369  val_iou 0.8818  lr 2.50e-04  (4.3s)
+epoch  27/40  train_loss 0.6655  val_loss 0.3196  val_dice 0.9398  val_iou 0.8869  lr 2.50e-04  (4.3s)
+epoch  28/40  train_loss 0.6998  val_loss 0.3164  val_dice 0.9397  val_iou 0.8868  lr 2.50e-04  (4.3s)
+epoch  29/40  train_loss 0.6361  val_loss 0.3337  val_dice 0.9348  val_iou 0.8780  lr 2.50e-04  (4.5s)
+epoch  30/40  train_loss 0.7563  val_loss 0.3212  val_dice 0.9402  val_iou 0.8875  lr 1.25e-04  (4.3s)
+epoch  31/40  train_loss 0.6176  val_loss 0.3238  val_dice 0.9373  val_iou 0.8824  lr 1.25e-04  (4.4s)
+epoch  32/40  train_loss 0.6465  val_loss 0.3242  val_dice 0.9398  val_iou 0.8867  lr 1.25e-04  (4.4s)
+epoch  33/40  train_loss 0.5973  val_loss 0.3246  val_dice 0.9411  val_iou 0.8892  lr 1.25e-04  (4.3s)
+epoch  34/40  train_loss 0.7672  val_loss 0.3037  val_dice 0.9428  val_iou 0.8921  lr 1.25e-04  (4.3s)
+epoch  35/40  train_loss 0.5964  val_loss 0.3199  val_dice 0.9380  val_iou 0.8836  lr 1.25e-04  (4.4s)
+epoch  36/40  train_loss 0.5856  val_loss 0.3142  val_dice 0.9396  val_iou 0.8864  lr 1.25e-04  (4.3s)
+epoch  37/40  train_loss 0.5809  val_loss 0.2981  val_dice 0.9414  val_iou 0.8896  lr 1.25e-04  (4.3s)
+epoch  38/40  train_loss 0.5741  val_loss 0.3001  val_dice 0.9428  val_iou 0.8921  lr 1.25e-04  (4.4s)
+epoch  39/40  train_loss 0.5660  val_loss 0.2909  val_dice 0.9436  val_iou 0.8935  lr 1.25e-04  (4.5s)
+epoch  40/40  train_loss 0.6262  val_loss 0.2901  val_dice 0.9407  val_iou 0.8883  lr 1.25e-04  (4.8s)
+done.
+  best val dice: 0.9436
+  checkpoint:    outputs\checkpoints\best.pt

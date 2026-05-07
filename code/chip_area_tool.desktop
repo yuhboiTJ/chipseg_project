@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Microchip Area Tool
+Comment=Live seedable area readout from the microscope camera
+# IMPORTANT: edit the next two lines so the absolute path matches where you
+# put the project on the Pi (this file uses /home/pi/microchip-segmentation
+# as the placeholder location).
+Exec=/home/pi/microchip-segmentation/code/run_chip_tool.sh
+Path=/home/pi/microchip-segmentation/code
+# Bundled icon (chip silhouette + crosshair). Update the path below to wherever
+# you put the project on the Pi.
+Icon=/home/pi/microchip-segmentation/code/icon.png
+Terminal=false
+Categories=Science;Education;
